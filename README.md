@@ -1,40 +1,125 @@
-"""
+# 🚢 Float Forward Telemetry Server  
+### DTU Boat Telemetry Pipeline
 
-The subscribeAndSendToDB.py replaces the old Raspberry Pi telemetry script.
+A modern telemetry backend for the Float Forward (DTU) boat.  
+This system replaces last year's Raspberry Pi with a more reliable, cloud-integrated stack:
 
-What it does:
+- **HiveMQ Cloud** – secure MQTT broker  
+- **Python MQTT Bridge** – receives telemetry & writes to InfluxDB  
+- **InfluxDB** – time-series storage  
+- **Grafana** – real-time dashboards  
+- **Cloudflare Tunnel** – remote access  
+- **ESP32 Simulator** – realistic telemetry generator for development  
 
-- Connect to HiveMQ Cloud securely (MQTT over TLS, port 8883)
+Designed to run on the **DTU mini-PC telemetry server**.
 
-- Subscribe to all boat telemetry topics
+---
 
-- Parse and validate incoming MQTT messages
+# ⚡ System Architecture
 
-- Write processed telemetry into InfluxDB
-    - use official InfluxDB Python client
-    - Flux-compatible format
-    - write at defined intervals (e.g. 1 Hz)
-    - bucket: "boat_telemetry"
-    - organization: "docs"
+```
+ESP32 / Simulator
+        │
+        ▼
+   HiveMQ Cloud
+ (MQTT over TLS)
+        │
+        ▼
+   MQTT Bridge
+  (Python script)
+        │
+        ▼
+    InfluxDB
+        │
+        ▼
+      Grafana
+        │
+        ▼
+ Cloudflare Tunnel
+```
 
-- Handle unexpected network disconnects
-    - reconnect automatically to HiveMQ Cloud
-    - retry database writes if needed
+---
 
-- (Optional) Forward telemetry to MEBC API (the one provided by Monaco)
-    - same logic as older script
-    - HTTP POST with JSON payload
+# 📂 Project Structure
 
-- (Optional) Log CSV backup files locally
-    - timestamped logs
-    - helpful for offline debugging
-    - optional, configurable
+```
+ff_server/
+│
+├── src/
+│   ├── mqtt_bridge.py          # Main telemetry pipeline
+│   ├── esp32_simulator.py      # Telemetry generator (test)
+│   └── __init__.py
+│
+├── config/
+│   └── .env                    # Environment variables (not in Git)
+│
+├── tools/
+│   └── cloudflared.deb         # Optional Cloudflare installer
+│
+├── old_scripts/                # Previous Raspberry Pi code
+│
+├── docker-compose.yml          # InfluxDB + Grafana
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
 
-This new script is 100% equivalent in functionality to the 
-old Raspberry Pi script, but modernized for:
-    • HiveMQ Cloud MQTT broker (secure & external)
-    • InfluxDB 2.x (modern DB with Flux)
-    • The new mini-PC server environment
-    • Remote access through Cloudflare Tunnel
+---
 
-"""
+# 🚀 Running the Telemetry Pipeline
+
+## 1️⃣ Activate Python Virtual Environment
+
+```bash
+source ff-env/bin/activate
+```
+
+## 2️⃣ Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## 3️⃣ Run the MQTT Bridge  
+(HiveMQ → InfluxDB)
+
+```bash
+python src/mqtt_bridge.py
+```
+
+Expected output:
+
+```
+Connected OK!
+Subscribed to boat/telemetry/#
+Received gps/speed = 4.3
+--- Wrote 1 telemetry row to InfluxDB ---
+```
+
+The bridge:
+
+- Subscribes to **all telemetry topics**  
+- Parses MQTT payloads  
+- Stores processed data in InfluxDB (1 Hz)
+
+---
+
+## 4️⃣ Run the ESP32 Simulator  
+(Generates realistic boat telemetry)
+
+```bash
+python src/esp32_simulator.py
+```
+
+Example output:
+
+```
+Published boat/telemetry/gps/speed: 3.87
+Published boat/telemetry/battery/1/voltage: 52.4
+```
+
+Perfect for development without boat hardware.
+
+---
