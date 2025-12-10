@@ -1,0 +1,24 @@
+# Python cache files
+__pycache__/
+*.pyc
+
+# Virtual environments
+ff-env/
+venv/
+env/
+
+# Editor temporary files
+*.swp
+.vscode/
+
+# Logs
+logs/
+*.log
+
+# Credentials (do NOT upload real ones)
+.env
+config/.env
+*.env
+
+# System files
+.DS_Store
