@@ -119,7 +119,7 @@ def write_periodically():
 
             # ---- TEMPORARY TEST MODE ----
             # Write to Influx when more than 40 fields exist
-            if len(data_cache) > 40:
+            if all(field in data_cache for field in EXPECTED_FIELDS):
                 print("\n--- DEBUG WRITE: partial frame ---")
 
                 p = Point("telemetry").tag("object", "boat")
@@ -139,7 +139,7 @@ def write_periodically():
 
                 print(f"--- Wrote {len(data_cache)} fields to InfluxDB (debug mode) ---\n")
 
-                # Do NOT clear cache ? so we can see which fields never arrive
+                # data_cache.clear() --> Do NOT clear cache ? so we can see which fields never arrive
 
 # Start writer thread
 threading.Thread(target=write_periodically, daemon=True).start()
