@@ -18,6 +18,7 @@ client = mqtt.Client(client_id="telemetry_simulator", protocol=mqtt.MQTTv5)
 client.username_pw_set(USER, PASSWORD)
 client.tls_set()  # Use default TLS settings
 client.connect(BROKER, PORT)
+client.loop_start()
 print("Simulator connected to HiveMQ Cloud!")
 
 
@@ -136,7 +137,7 @@ def generate_value(topic):
 while True:
     for topic in topics:
         value = generate_value(topic)
-        client.publish(topic, str(value), qos=1)
+        client.publish(topic, str(value), qos=0)
         print(f"Published {topic}: {value}")
 
     time.sleep(1)
