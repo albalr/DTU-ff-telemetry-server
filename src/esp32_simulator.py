@@ -4,7 +4,7 @@ import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 import os
 
-load_dotenv()
+load_dotenv('../config/.env')
 
 BROKER = os.getenv("HIVEMQ_HOST")
 PORT = int(os.getenv("HIVEMQ_PORT"))
