@@ -62,12 +62,12 @@ def on_message(client, userdata, msg):
     p = Point("telemetry").tag("object", "boat")
 
     for battery_id, battery_data in frame["battery"].items():
-    for key, value in battery_data.items():
-        field_name = f"battery_{battery_id}_{key}"
+        for key, value in battery_data.items():
+            field_name = f"battery_{battery_id}_{key}"
 
-        if key == "alarm":
-            value = int(value)
-        p = p.field(field_name, value)
+            if key == "alarm":
+                value = int(value)
+            p = p.field(field_name, value)
 
 
     for key, value in frame["gps"].items():
