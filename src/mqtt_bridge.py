@@ -6,6 +6,7 @@ import time
 import threading
 from dotenv import load_dotenv
 import os
+import json
 
 load_dotenv('../config/.env')
 
@@ -17,6 +18,8 @@ PORT = int(os.getenv("HIVEMQ_PORT"))
 USER = os.getenv("HIVEMQ_USER")
 PASSWORD = os.getenv("HIVEMQ_PASSWORD")
 
+TOPIC = "boat/telemetry/frame"
+
 # ==========================
 # InfluxDB details
 # ==========================
@@ -26,7 +29,7 @@ INFLUXDB_ORG = os.getenv("INFLUX_ORG")
 INFLUXDB_BUCKET = os.getenv("INFLUX_BUCKET")
 
 client_db = InfluxDBClient(url=INFLUXDB_URL, token=INFLUXDB_TOKEN, org=INFLUXDB_ORG)
-write_api = client_db.write_api(write_options=WriteOptions(batch_size=1))
+write_api = client_db.write_api(write_options=WriteOptions(batch_size=100, flush_interval=1000, jitter_interval=200,retry_interval=5000))
 
 # ======================================================
 # DEFINE ALL EXPECTED TOPICS FOR A FULL TELEMETRY CYCLE
@@ -75,6 +78,7 @@ cache_lock = threading.Lock()
 # ==========================
 # MQTT callbacks
 # ==========================
+
 def on_connect(client, userdata, flags, rc, props=None):
     if rc == 0:
         print("Connected OK!")
@@ -83,22 +87,45 @@ def on_connect(client, userdata, flags, rc, props=None):
     else:
         print("Connection failed:", rc)
 
+
 def on_message(client, userdata, msg):
-    global data_cache
+    #global data_cache
+    global messageCounter = 0
+    messageCounter += 1 
 
-    topic_key = msg.topic.replace("boat/telemetry/", "")
-    payload = msg.payload.decode().strip()
+    payload = msg.payload.decode()
+    frmae = json.loads(payload)
 
-    # Parse float when possible
-    try:
-        value = float(payload)
-    except ValueError:
-        value = payload
+    print("Recieves teleemetry frame")
 
-    with cache_lock:
-        data_cache[topic_key] = value
+    p = Point("telemetry").tag("object", "boat")
 
-    print(f"Received {topic_key} = {value}")
+    for battery_id, battery_data in frame["battery"].items():
+        for key, value in battery_data.items():
+            field_name = f"battery_{battery_id}_{key}"
+            p = p.field(field_name, value)
+
+    for key, value in frame["gps"].items():
+        p = p.field(f"gps_{key}", value)
+
+    for key, value in frame["motor"].items():
+        if isinstance(value, (int, float)):
+            p = p.field(f"motor_{key}", value)
+        else:
+            p = p.tag(f"motor_{key}", value)
+
+    for key, value in frame["environment"].items():
+        p = p.field(key, value)
+
+    write_api.write(
+        bucket=INFLUXDB_BUCKET,
+        org=INFLUXDB_ORG,
+        record=p
+    )
+
+    print("Wrote telemetry frame to InfluxDB")
+
+
 
 # ===========================================
 # WRITE ONLY WHEN FULL TELEMETRY CYCLE ARRIVES
@@ -138,6 +165,8 @@ def write_periodically():
                 )
 
                 print(f"--- Wrote {len(data_cache)} fields to InfluxDB (debug mode) ---\n")
+                print("Messages per second:", messageCounter)
+                messageCounter= 0
 
                 # data_cache.clear() --> Do NOT clear cache ? so we can see which fields never arrive
 
