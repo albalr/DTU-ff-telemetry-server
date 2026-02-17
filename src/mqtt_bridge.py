@@ -66,7 +66,7 @@ def on_message(client, userdata, msg):
             field_name = f"battery_{battery_id}_{key}"
 
             if key == "alarm":
-                value = int(value)
+                value = float(value)
             p = p.field(field_name, value)
 
 
