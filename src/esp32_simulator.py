@@ -49,9 +49,9 @@ def generate_frame():
             "voltage": float(round(random.uniform(50, 54), 2)),
             "current": float(round(random.uniform(3, 10), 2)),
             "temperature": float(round(random.uniform(25, 40), 1)),
-            "soc": int(random.randint(70, 100)),
-            "status": int(1),
-            "alarm": int(0)
+            "soc": float(random.randint(70, 100)),
+            "status": float(1),
+            "alarm": float(0)
         }
 
 
@@ -60,8 +60,8 @@ def generate_frame():
         "latitude": 55.0 + random.uniform(-0.005, 0.005),
         "longitude": 12.0 + random.uniform(-0.005, 0.005),
         "altitude": round(random.uniform(0, 5), 2),
-        "status": 1,
-        "Nsatellites": random.randint(8, 15),
+        "status": float(1),
+        "Nsatellites":float(random.randint(8, 15)),
         "roll": round(random.uniform(-1, 1), 3),
         "pitch": round(random.uniform(-1, 1), 3),
         "heading": round(random.uniform(0, 360), 2),
@@ -77,8 +77,8 @@ def generate_frame():
 
     # Motor
     frame["motor"] = {
-        "speed": random.randint(900, 1500),
-        "power": random.randint(300, 2000),
+        "speed": float(random.randint(900, 1500)),
+        "power": float(random.randint(300, 2000)),
         "direction": random.choice(["Forward", "Neutral", "Reverse"]),
         "current": round(random.uniform(5, 20), 2)
     }
