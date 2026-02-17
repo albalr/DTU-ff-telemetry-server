@@ -64,10 +64,8 @@ def on_message(client, userdata, msg):
     for battery_id, battery_data in frame["battery"].items():
         for key, value in battery_data.items():
             field_name = f"battery_{battery_id}_{key}"
-
-            if key == "alarm":
-                value = float(value)
             p = p.field(field_name, value)
+
 
 
     for key, value in frame["gps"].items():
