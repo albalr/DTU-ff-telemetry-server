@@ -90,7 +90,7 @@ def on_connect(client, userdata, flags, rc, props=None):
 
 def on_message(client, userdata, msg):
     #global data_cache
-    global messageCounter = 0
+    global messageCounter
     messageCounter += 1 
 
     payload = msg.payload.decode()
