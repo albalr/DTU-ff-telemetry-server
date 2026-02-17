@@ -46,13 +46,14 @@ def generate_frame():
     # Batteries
     for i in range(1, 5):
         frame["battery"][str(i)] = {
-            "voltage": round(random.uniform(50, 54), 2),
-            "current": round(random.uniform(3, 10), 2),
-            "temperature": round(random.uniform(25, 40), 1),
-            "soc": random.randint(70, 100),
-            "status": 1,
-            "alarm": 0
+            "voltage": float(round(random.uniform(50, 54), 2)),
+            "current": float(round(random.uniform(3, 10), 2)),
+            "temperature": float(round(random.uniform(25, 40), 1)),
+            "soc": int(random.randint(70, 100)),
+            "status": int(1),
+            "alarm": int(0)
         }
+
 
     # GPS
     frame["gps"] = {
