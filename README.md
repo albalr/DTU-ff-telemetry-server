@@ -86,7 +86,7 @@ pip install -r requirements.txt
 (HiveMQ → InfluxDB)
 
 ```bash
-python src/mqtt_bridge.py
+python src/mqtt_subscriber_basic_test.py
 ```
 
 Expected output:
@@ -110,7 +110,7 @@ The bridge:
 (Generates realistic boat telemetry)
 
 ```bash
-python src/esp32_simulator.py
+python src/esp32_simulator_basic.py
 ```
 
 Example output:
