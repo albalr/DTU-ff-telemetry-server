@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import WriteOptions
 
-load_dotenv("config/.env")
+load_dotenv("../config/.env")
 
 # ==========================
 # HiveMQ cloud details
@@ -18,6 +18,9 @@ PASSWORD = os.getenv("HIVEMQ_PASSWORD")
 # InfluxDB details
 # ==========================
 INFLUXDB_URL = os.getenv("INFLUX_URL")
+print(f"DEBUG: INFLUX_URL is {INFLUXDB_URL}")
+if INFLUXDB_URL is None:
+    raise ValueError("INFLUX_URL not found! Check your .env file path and keys.")
 INFLUXDB_TOKEN = os.getenv("INFLUX_TOKEN")
 INFLUXDB_ORG = os.getenv("INFLUX_ORG")
 INFLUXDB_BUCKET = os.getenv("INFLUX_BUCKET")
