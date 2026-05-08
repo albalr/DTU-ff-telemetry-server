@@ -30,7 +30,7 @@ CLIENT_ID = "esp32_can_bridge_simulator"
 # RUNTIME CONFIG
 # =========================================================
 MQTT_QOS = 0
-MQTT_RETAIN = True
+MQTT_RETAIN = False
 
 PRINT_EACH_MESSAGE = False
 PRINT_TASK_RUNS = False
