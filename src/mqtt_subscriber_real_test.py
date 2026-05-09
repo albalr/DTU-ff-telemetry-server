@@ -1,5 +1,7 @@
 import os
 import paho.mqtt.client as mqtt
+from pathlib import Path
+import json
 
 from dotenv import load_dotenv
 
@@ -16,7 +18,9 @@ from influxdb_client.client.write_api import (
 # Load environment variables
 # =========================================================
 
-load_dotenv("../config/.env")
+BASE_DIR = Path(__file__).resolve().parent.parent
+ENV_PATH = BASE_DIR / "config" / ".env"
+load_dotenv(ENV_PATH)
 
 # =========================================================
 # HiveMQ Cloud details
@@ -64,7 +68,8 @@ client_db = InfluxDBClient(
 
 write_api = client_db.write_api(
     write_options=WriteOptions(
-        batch_size=1
+        batch_size=500,
+        flush_interval=1000
     )
 )
 
@@ -114,6 +119,63 @@ ALLOWED_TOPICS = {
 }
 
 # =========================================================
+# Expected data types for each topic
+# =========================================================
+
+TOPIC_TYPES = {
+
+    # HV batteries
+    "battery/1/voltage": float,
+    "battery/2/voltage": float,
+
+    "battery/1/current": float,
+    "battery/2/current": float,
+
+    "battery/1/temperature": float,
+    "battery/2/temperature": float,
+
+    "battery/1/soc": float,
+    "battery/2/soc": float,
+
+    # LV battery
+    "battery/3/voltage": float,
+
+    # DHT
+    "dht/temp": float,
+
+    # Motor
+    "motor/power": float,
+    "motor/speed": float,
+    "motor/direction": str,
+
+    # GPS
+    "gps/status": int,
+    "gps/speed": float,
+    "gps/latitude": float,
+    "gps/longitude": float,
+    "gps/Nsatellites": int,
+    "gps/altitude": float,
+    "gps/roll": float,
+    "gps/pitch": float,
+    "gps/heading": float,
+    "gps/valid": int,
+
+    # IMU
+    "imu/batch": str,
+}
+
+# =========================================================
+# Valid enum values
+# =========================================================
+
+VALID_MOTOR_DIRECTIONS = {
+    "Forward",
+    "Reverse",
+    "Neutral",
+}
+
+
+# =========================================================
 # MQTT callbacks
 # =========================================================
 
@@ -137,6 +199,28 @@ def on_connect(
         "boat/telemetry/#"
     )
 
+
+# =========================================================
+
+def on_disconnect(
+        client,
+        userdata,
+        rc,
+        properties=None
+):
+    print(
+        f"Disconnected from MQTT broker "
+        f"(rc={rc})"
+    )
+
+    # rc == 0 means clean disconnect
+    if rc != 0:
+        print(
+            "Unexpected disconnection. "
+            "Trying to reconnect..."
+        )
+
+
 # =========================================================
 
 def on_message(
@@ -159,16 +243,135 @@ def on_message(
 
     payload = msg.payload.decode().strip()
 
-    # Parse float when possible
+    # =========================================================
+    # IMU batch handling
+    # =========================================================
+
+    if topic_key == "imu/batch":
+
+        try:
+
+            imu_data = json.loads(payload)
+
+            samples = imu_data.get("samples", [])
+
+            count = imu_data.get("count", 0)
+
+            # Validate count
+            if count != len(samples):
+
+                print(
+                    "IMU count mismatch"
+                )
+
+                return
+
+            points = []
+
+            required_keys = {
+                "t",
+                "ax",
+                "ay",
+                "az",
+                "gx",
+                "gy",
+                "gz",
+            }
+
+            for sample in samples:
+
+                # Validate IMU sample keys
+                if not required_keys.issubset(sample):
+
+                    print(
+                        "Invalid IMU sample keys"
+                    )
+
+                    continue
+
+                p = (
+                    Point("imu")
+                    .tag("object", "boat")
+
+                    .field("ax", float(sample["ax"]))
+                    .field("ay", float(sample["ay"]))
+                    .field("az", float(sample["az"]))
+
+                    .field("gx", float(sample["gx"]))
+                    .field("gy", float(sample["gy"]))
+                    .field("gz", float(sample["gz"]))
+
+                    .field("t_boot_ms", int(sample["t"]))
+                )
+
+                points.append(p)
+
+            write_api.write(
+                bucket=INFLUXDB_BUCKET,
+                org=INFLUXDB_ORG,
+                record=points
+            )
+
+            print(
+                f"Written {len(points)} "
+                f"IMU samples to InfluxDB"
+            )
+
+        except Exception as e:
+
+            print(
+                f"Invalid IMU batch: {e}"
+            )
+
+        return
+
+    # =========================================================
+    # Validate and parse payload
+    # =========================================================
+    expected_type = TOPIC_TYPES.get(topic_key)
+
     try:
-        value = float(payload)
+        if expected_type == float:
+            value = float(payload)
+        elif expected_type == int:
+            value = int(payload)
+        elif expected_type == str:
+            value = payload
+        else:
+            value = payload
 
     except ValueError:
-        value = payload
+        print(
+            f"Invalid payload type for "
+            f"{topic_key}: {payload}"
+        )
+        return
 
     print(
         f"{msg.topic} -> {value}"
     )
+
+    # =========================================================
+    # Validate motor direction enum
+    # =========================================================
+    if topic_key == "motor/direction":
+        if value not in VALID_MOTOR_DIRECTIONS:
+            print(
+                f"Invalid motor direction: "
+                f"{value}"
+            )
+            return
+
+    # =========================================================
+    # Validate gps/valid
+    # =========================================================
+    if topic_key == "gps/valid":
+        if value not in (0, 1):
+            print(
+                f"Invalid gps/valid value: "
+                f"{value}"
+            )
+            return
 
     # Write to InfluxDB
     p = (
@@ -191,13 +394,19 @@ def on_message(
         f"{topic_key} = {value}"
     )
 
+
 # =========================================================
 # MQTT client setup
 # =========================================================
 
 client = mqtt.Client(
-    client_id="mqtt_test_subscriber",
+    client_id="boat_telemetry_bridge",
     protocol=mqtt.MQTTv5
+)
+
+client.reconnect_delay_set(
+    min_delay=1,
+    max_delay=30
 )
 
 client.username_pw_set(
@@ -208,8 +417,8 @@ client.username_pw_set(
 client.tls_set()
 
 client.on_connect = on_connect
-
 client.on_message = on_message
+client.on_disconnect = on_disconnect
 
 # =========================================================
 # Connect
